@@ -63,6 +63,10 @@
 #include "vialrgb.h"
 #endif
 
+#ifdef GPKRC_ENABLE
+#include "gpk_rc.h"
+#endif
+
 // Forward declare some helpers.
 #if defined(VIA_QMK_BACKLIGHT_ENABLE)
 void via_qmk_backlight_set_value(uint8_t *data);
@@ -207,6 +211,12 @@ __attribute__((weak)) void raw_hid_receive_kb(uint8_t *data, uint8_t length) {
 //
 // raw_hid_send() is called at the end, with the same buffer, which was
 // possibly modified with returned values.
+
+#ifdef GPKRC_ENABLE
+#define GPK_RC_BUFFER_MAX 64
+uint8_t gpk_rc_buffer[GPK_RC_BUFFER_MAX] = {};
+#endif
+
 void raw_hid_receive(uint8_t *data, uint8_t length) {
     uint8_t *command_id   = &(data[0]);
     uint8_t *command_data = &(data[1]);
@@ -430,6 +440,29 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
                 dynamic_keymap_set_buffer(offset, size, &command_data[3]);
             break;
         }
+#if defined(GPKRC_ENABLE) 
+        case id_gpk_rc_olde_off:
+        case id_gpk_rc_olde_on:
+        case id_gpk_rc_olde_write:
+        case id_gpk_rc_olde_clear:
+        case id_gpk_rc_rgblight_off:
+        case id_gpk_rc_rgblight_on:
+        case id_gpk_rc_rgblight_setrgb_range:
+        case id_gpk_rc_rgb_matrix_off:
+        case id_gpk_rc_rgb_matrix_on:
+        case id_gpk_rc_rgb_matrix_setrgb_range:
+        case id_gpk_rc_layer_on:
+        case id_gpk_rc_layer_off:
+        case id_gpk_rc_layer_clear:
+        case id_gpk_rc_layer_move:  
+        case id_gpk_rc_sned_string: {
+            gpk_rc_receive(gpk_rc_buffer, GPK_RC_BUFFER_MAX, data, length);
+        }
+        case id_gpk_rc_version: {
+            char* gpk_rc_version = ("gpk_rc_1                        ");
+            raw_hid_send((uint8_t*)gpk_rc_version, 32);
+        }
+#endif
 #if defined(VIAL_ENABLE) && !defined(VIAL_INSECURE)
         /* As VIA removed bootloader jump entirely, we shall only keep it for secure builds */
         case id_bootloader_jump: {

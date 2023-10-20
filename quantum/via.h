@@ -59,8 +59,11 @@
 
 // This is changed only when the command IDs change,
 // so VIA Configurator can detect compatible firmware.
-#define VIA_PROTOCOL_VERSION 0x0009
-
+#ifndef VIAL_ENABLE
+#    define VIA_PROTOCOL_VERSION 0x000C
+#else
+#    define VIA_PROTOCOL_VERSION 0x0009
+#endif
 // This is a version number for the firmware for the keyboard.
 // It can be used to ensure the VIA keyboard definition and the firmware
 // have the same version, especially if there are changes to custom values.
@@ -94,6 +97,23 @@ enum via_command_id {
     id_dynamic_keymap_get_layer_count       = 0x11,
     id_dynamic_keymap_get_buffer            = 0x12,
     id_dynamic_keymap_set_buffer            = 0x13,
+    id_gpk_rc_olde_off                      = 0x65,
+    id_gpk_rc_olde_on                       = 0x66,
+    id_gpk_rc_olde_write                    = 0x67,
+    id_gpk_rc_olde_clear                    = 0x68,
+    id_gpk_rc_rgblight_off                  = 0x69,
+    id_gpk_rc_rgblight_on                   = 0x6a,
+    id_gpk_rc_rgblight_setrgb_range         = 0x6b,
+    id_gpk_rc_rgb_matrix_off                = 0x6c,
+    id_gpk_rc_rgb_matrix_on                 = 0x6d,
+    id_gpk_rc_rgb_matrix_setrgb_range       = 0x6e,
+    id_gpk_rc_layer_on                      = 0x6f,
+    id_gpk_rc_layer_off                     = 0x70,
+    id_gpk_rc_layer_clear                   = 0x71,
+    id_gpk_rc_layer_move                    = 0x72,
+    id_gpk_rc_sned_string                   = 0x73,
+    id_gpk_is_olde_on                       = 0x74,
+    id_gpk_rc_version                       = 0x75,
     id_vial_prefix                          = 0xFE,
     id_unhandled                            = 0xFF,
 };
