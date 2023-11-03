@@ -617,6 +617,11 @@ ifeq ($(strip $(LED_TABLES)), yes)
     SRC += $(QUANTUM_DIR)/led_tables.c
 endif
 
+ifeq ($(strip $(GPKRC_ENABLE)), yes)
+    SRC += $(QUANTUM_DIR)/gpk_rc.c
+    OPT_DEFS += -DGPKRC_ENABLE
+endif
+
 ifeq ($(strip $(VIA_ENABLE)), yes)
     DYNAMIC_KEYMAP_ENABLE := yes
     RAW_ENABLE := yes
@@ -628,10 +633,6 @@ endif
 
 ifeq ($(strip $(VIAL_ENABLE)), yes)
     include $(BUILDDEFS_PATH)/build_vial.mk
-endif
-
-ifeq ($(strip $(GPKRC_ENABLE)), yes)
-        SRC += $(QUANTUM_DIR)/gpk_rc.c
 endif
 
 VALID_MAGIC_TYPES := yes
