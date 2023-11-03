@@ -630,6 +630,10 @@ ifeq ($(strip $(VIAL_ENABLE)), yes)
     include $(BUILDDEFS_PATH)/build_vial.mk
 endif
 
+ifeq ($(strip $(GPKRC_ENABLE)), yes)
+        SRC += $(QUANTUM_DIR)/gpk_rc.c
+endif
+
 VALID_MAGIC_TYPES := yes
 BOOTMAGIC_ENABLE ?= no
 ifneq ($(strip $(BOOTMAGIC_ENABLE)), no)
