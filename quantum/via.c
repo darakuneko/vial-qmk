@@ -196,6 +196,14 @@ bool process_record_via(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
 
+__attribute__((weak)) void gpk_custom_value_command_kb(uint8_t *data, uint8_t length) {
+}
+
+__attribute__((weak)) void gpk_custom_value_command(uint8_t *data, uint8_t length) {
+    // data = [ command_id, value_data ]
+    gpk_custom_value_command_kb(data, length);
+}
+
 // Keyboard level code can override this to handle custom messages from VIA.
 // See raw_hid_receive() implementation.
 // DO NOT call raw_hid_send() in the override function.
@@ -215,6 +223,7 @@ __attribute__((weak)) void raw_hid_receive_kb(uint8_t *data, uint8_t length) {
 #ifdef GPKRC_ENABLE
 #define GPK_RC_BUFFER_MAX 64
 uint8_t gpk_rc_buffer[GPK_RC_BUFFER_MAX] = {};
+bool use_gpk_custom = false;
 #endif
 
 void raw_hid_receive(uint8_t *data, uint8_t length) {
@@ -457,10 +466,19 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         case id_gpk_rc_layer_move:  
         case id_gpk_rc_sned_string: {
             gpk_rc_receive(gpk_rc_buffer, GPK_RC_BUFFER_MAX, data, length);
+            break;
         }
         case id_gpk_rc_version: {
             char* gpk_rc_version = ("gpk_rc_1                        ");
             raw_hid_send((uint8_t*)gpk_rc_version, 32);
+            break;
+        }
+        case id_gpk_custom_set_value:
+        case id_gpk_custom_get_value:
+        case id_gpk_custom_save: {
+            use_gpk_custom = true;
+            gpk_custom_value_command(data, length);
+            break;
         }
 #endif
 #if defined(VIAL_ENABLE) && !defined(VIAL_INSECURE)
@@ -495,7 +513,11 @@ skip:
 #endif
     // Return the same buffer, optionally with values changed
     // (i.e. returning state to the host, or the unhandled state).
-    raw_hid_send(data, length);
+    if(use_gpk_custom){
+        use_gpk_custom = false;
+    } else {
+        raw_hid_send(data, length);
+    }
 }
 
 #if defined(VIA_QMK_BACKLIGHT_ENABLE)

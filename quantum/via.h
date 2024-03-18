@@ -114,6 +114,9 @@ enum via_command_id {
     id_gpk_rc_sned_string                   = 0x73,
     id_gpk_is_olde_on                       = 0x74,
     id_gpk_rc_version                       = 0x75,
+    id_gpk_custom_set_value                 = 0x76,
+    id_gpk_custom_get_value                 = 0x77,
+    id_gpk_custom_save                      = 0x78,
     id_vial_prefix                          = 0xFE,
     id_unhandled                            = 0xFF,
 };
