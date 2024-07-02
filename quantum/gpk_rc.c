@@ -63,7 +63,10 @@ void gpk_rc_process_command_quantum(gpk_rc_command_t* command) {
     case LAYER_ON: layer_on(command->data[0]); break;
     case LAYER_OFF: layer_off(command->data[0]); break;
     case LAYER_CLEAR: layer_clear(); break;
-    case LAYER_MOVE: layer_move(command->data[0]); break;
+    case LAYER_MOVE: 
+      gpk_rc_move_layer = command->data[0];
+      is_gpk_rc_move_layer = gpk_rc_move_layer != 0;
+      layer_move(gpk_rc_move_layer); break;
 
     case SEND_STRING: send_string((const char*) command->data); break;
 

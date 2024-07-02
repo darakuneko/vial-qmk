@@ -27,4 +27,7 @@ typedef struct {
   uint8_t* data;
 } gpk_rc_command_t;
 
+bool is_gpk_rc_move_layer;
+int gpk_rc_move_layer;
+
 void gpk_rc_receive(uint8_t *buffer, uint16_t max_buffer_length, uint8_t* data, uint8_t data_length);
