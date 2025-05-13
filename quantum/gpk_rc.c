@@ -1,132 +1,91 @@
-#include <stdlib.h>
-#include <string.h>
 #include "gpk_rc.h"
-#include "quantum.h"
 
-__attribute__((weak)) void gpk_rc_process_command_user(gpk_rc_command_t* command) { }
+#define GPK_RC_BUFFER_MAX 64
+static uint8_t gpk_rc_buffer[GPK_RC_BUFFER_MAX] = {};
+bool use_gpk_rc_custom_receive = false;
 
-enum gpk_rc_commands_quantum {
-  RESERVED = 0,
-  OLED_OFF                 = 0x65,
-  OLED_ON                  = 0x66,
-  OLED_WRITE               = 0x67,
-  OLED_CLEAR               = 0x68,
-  RGBLIGHT_OFF             = 0x69,
-  RGBLIGHT_ON              = 0x6a,
-  RGBLIGHT_SETRGB_RANGE    = 0x6b,
-  RGB_MATRIX_OFF           = 0x6c,
-  RGB_MATRIX_ON            = 0x6d,
-  RGB_MATRIX_SETRGB_RANGE  = 0x6e,
-  LAYER_ON                 = 0x6f,
-  LAYER_OFF                = 0x70,
-  LAYER_CLEAR              = 0x71,
-  LAYER_MOVE               = 0x72,
-  SEND_STRING              = 0x73,
-  IS_OLED_ON               = 0x74,
-  GPK_RC_VERSION           = 0x75,
-};
+static void gpk_rc_parse_command(uint8_t *buffer, uint8_t* data, uint8_t data_length);
 
-void gpk_rc_process_command_quantum(gpk_rc_command_t* command) {
-  switch (command->id) {
-#ifdef OLED_ENABLE
-    case OLED_OFF: oled_off(); break;
-    case OLED_ON: oled_on(); break;
-    case OLED_WRITE:
-      oled_write((const char*) command->data, false);
-      break;
-    case OLED_CLEAR: oled_clear(); break;
-#endif
-
-#ifdef RGBLIGHT_ENABLE
-    case RGBLIGHT_OFF: rgblight_disable_noeeprom(); break;
-    case RGBLIGHT_ON: rgblight_enable_noeeprom(); break;
-    case RGBLIGHT_SETRGB_RANGE:
-      rgblight_setrgb_range(
-        command->data[0], // R
-        command->data[1], // G
-        command->data[2], // B
-        command->data[3], // diode index start
-        command->data[4]  // diode index end
-      );
-      break;
-#endif
-
-#ifdef RGB_MATRIX_ENABLE
-    case RGB_MATRIX_OFF: rgb_matrix_disable_noeeprom(); break;
-    case RGB_MATRIX_ON: rgb_matrix_enable_noeeprom(); break;
-    case RGB_MATRIX_SETRGB_RANGE:
-      for (int i = command->data[3]; i < command->data[4]; i++)
-        rgb_matrix_set_color(i, command->data[0], command->data[1], command->data[2]);
-      break;
-#endif
-
-    case LAYER_ON: layer_on(command->data[0]); break;
-    case LAYER_OFF: layer_off(command->data[0]); break;
-    case LAYER_CLEAR: layer_clear(); break;
-    case LAYER_MOVE: 
-      gpk_rc_move_layer = command->data[0];
-      is_gpk_rc_move_layer = gpk_rc_move_layer != 0;
-      layer_move(gpk_rc_move_layer); break;
-
-    case SEND_STRING: send_string((const char*) command->data); break;
-
-    default:
-      gpk_rc_process_command_user(command);
-  }
-}
-
-gpk_rc_parser_t parser = {
-  .state = RECEIVING_COMMAND,
-  .data_bytes_read = 0,
-};
+__attribute__((weak)) void gpk_rc_handle_command_user(uint8_t id, uint8_t *data, uint8_t length) {}
 
 gpk_rc_command_t command = {
   .id = UINT8_MAX,
   .data_length = 0,
   .data = NULL,
-
 };
-
-void gpk_rc_receive(uint8_t *buffer, uint16_t max_buffer_length, uint8_t* data, uint8_t data_length) {
-  for (int i = 0; i < data_length; i++) {
-    if (parser.state == RECEIVING_COMMAND) {
-      // Raw HID packets are padded to `RAW_EPSIZE`, 32 or 64 bytes. Since this
-      // is an afterthought for this parser, we reserve the 0 command code as
-      // a "skip" instruction in receiving command mode. In the sender we then
-      // universally pad to 64 bytes with 0s.
-      if (data[i] == 0) continue;
-
-      command.id = data[i];
-      parser.state = RECEIVING_DATA_LENGTH;
-
-      parser.data_length_bytes_read = 0;
-      parser.data_length.data_length = 0;
+  
+static void gpk_rc_handle_command_quantum(gpk_rc_command_t* command) {
+  switch (command->id) {
+    case id_gpk_rc_info: {
+      gpk_rc_info_t info = {
+        .version = 1,
+#if defined(GPKRC_TRACKPAD)
+        .device = "trackpad"
+#else
+        .device = "keyboard"
+#endif
+      };
+      
+      uint8_t buffer[32] = {0};
+      buffer[0] = id_gpk_rc_prefix;
+      buffer[1] = id_gpk_rc_info;
+      buffer[2] = info.version;
+      memcpy(&buffer[3], info.device, sizeof(info.device));
+      
+      raw_hid_send(buffer, 32);
+      break;
     }
-    else if (parser.state == RECEIVING_DATA_LENGTH) {
-      parser.data_length.raw[parser.data_length_bytes_read++] = data[i];
 
-      if (parser.data_length_bytes_read == sizeof(gpk_rc_data_length_t)) {
-        command.data_length = parser.data_length.data_length;
+    case id_gpk_rc_custom_set_value:
+    case id_gpk_rc_custom_get_value:
+    case id_gpk_rc_pomodoro_get_value: {
+      gpk_rc_handle_command_user(
+        command->id,
+        command->data,
+        command->data_length
+      );
+      break;
+    }
 
-        command.data = NULL;
-
-        if (command.data_length == 0) {
-          gpk_rc_process_command_quantum(&command);
-          parser.state = RECEIVING_COMMAND;
-        }
-        else {
-          parser.state = RECEIVING_DATA;
-          parser.data_bytes_read = 0;
-        }
+    case id_gpk_rc_layer_move: {
+      if (command->data_length >= 1) {
+        layer_move(command->data[0]);
       }
+      break;
     }
-    else if (parser.state == RECEIVING_DATA) {
-      buffer[parser.data_bytes_read++] = data[i];
-      if (parser.data_bytes_read == command.data_length) {
-        command.data = buffer;
-        gpk_rc_process_command_quantum(&command);
-        parser.state = RECEIVING_COMMAND;
-      }
+
+#ifdef OLED_ENABLE
+    case id_gpk_rc_olde_write: {
+      oled_write((const char*) command->data, false);
+      break;
     }
+#endif
+
+    default:
+      break;
   }
+} 
+
+void gpk_rc_on_receive(uint8_t* data, uint8_t data_length) {
+  gpk_rc_parse_command(gpk_rc_buffer, data, data_length);
+}
+
+static void gpk_rc_parse_command(uint8_t *buffer, uint8_t* data, uint8_t data_length) {
+  use_gpk_rc_custom_receive = true;
+  if (data_length == 0) return;
+  command.id = data[0];
+  command.data_length = data_length - 1;
+
+  if (command.data_length > 0) {
+    if (command.data_length <= GPK_RC_BUFFER_MAX) {
+      memcpy(buffer, &data[1], command.data_length);
+      command.data = buffer;
+    } else {
+      return;
+    }
+  } else {
+    command.data = NULL;
+  }
+  
+  gpk_rc_handle_command_quantum(&command);
 }

@@ -220,12 +220,6 @@ __attribute__((weak)) void raw_hid_receive_kb(uint8_t *data, uint8_t length) {
 // raw_hid_send() is called at the end, with the same buffer, which was
 // possibly modified with returned values.
 
-#ifdef GPKRC_ENABLE
-#define GPK_RC_BUFFER_MAX 64
-uint8_t gpk_rc_buffer[GPK_RC_BUFFER_MAX] = {};
-bool use_gpk_custom = false;
-#endif
-
 void raw_hid_receive(uint8_t *data, uint8_t length) {
     uint8_t *command_id   = &(data[0]);
     uint8_t *command_data = &(data[1]);
@@ -450,34 +444,8 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
             break;
         }
 #if defined(GPKRC_ENABLE) 
-        case id_gpk_rc_olde_off:
-        case id_gpk_rc_olde_on:
-        case id_gpk_rc_olde_write:
-        case id_gpk_rc_olde_clear:
-        case id_gpk_rc_rgblight_off:
-        case id_gpk_rc_rgblight_on:
-        case id_gpk_rc_rgblight_setrgb_range:
-        case id_gpk_rc_rgb_matrix_off:
-        case id_gpk_rc_rgb_matrix_on:
-        case id_gpk_rc_rgb_matrix_setrgb_range:
-        case id_gpk_rc_layer_on:
-        case id_gpk_rc_layer_off:
-        case id_gpk_rc_layer_clear:
-        case id_gpk_rc_layer_move:  
-        case id_gpk_rc_sned_string: {
-            gpk_rc_receive(gpk_rc_buffer, GPK_RC_BUFFER_MAX, data, length);
-            break;
-        }
-        case id_gpk_rc_version: {
-            char* gpk_rc_version = ("gpk_rc_1                        ");
-            raw_hid_send((uint8_t*)gpk_rc_version, 32);
-            break;
-        }
-        case id_gpk_custom_set_value:
-        case id_gpk_custom_get_value:
-        case id_gpk_custom_save: {
-            use_gpk_custom = true;
-            gpk_custom_value_command(data, length);
+        case id_gpk_rc_prefix: {
+            gpk_rc_on_receive(&data[1], length-1);
             break;
         }
 #endif
@@ -513,11 +481,15 @@ skip:
 #endif
     // Return the same buffer, optionally with values changed
     // (i.e. returning state to the host, or the unhandled state).
-    if(use_gpk_custom){
-        use_gpk_custom = false;
-    } else {
+    #if defined(GPKRC_ENABLE) 
+        if(use_gpk_rc_custom_receive){
+            use_gpk_rc_custom_receive = false;
+        } else {
+            raw_hid_send(data, length);
+        }
+    #else
         raw_hid_send(data, length);
-    }
+    #endif
 }
 
 #if defined(VIA_QMK_BACKLIGHT_ENABLE)
