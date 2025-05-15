@@ -56,7 +56,9 @@ static void gpk_rc_handle_command_quantum(gpk_rc_command_t* command) {
 
 #ifdef OLED_ENABLE
     case id_gpk_rc_olde_write: {
-      oled_write((const char*) command->data, false);
+      if(is_oled_on()){
+        oled_write((const char*) command->data, false);
+      }
       break;
     }
 #endif
