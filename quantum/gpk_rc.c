@@ -6,63 +6,28 @@ bool use_gpk_rc_custom_receive = false;
 
 static void gpk_rc_parse_command(uint8_t *buffer, uint8_t* data, uint8_t data_length);
 
-__attribute__((weak)) void gpk_rc_handle_command_user(uint8_t id, uint8_t *data, uint8_t length) {}
+__attribute__((weak)) void gpk_rc_handle_command_user(uint8_t id, uint8_t action, uint8_t *data, uint8_t length) {}
 
 gpk_rc_command_t command = {
   .id = UINT8_MAX,
+  .action = UINT8_MAX,
   .data_length = 0,
   .data = NULL,
 };
   
 static void gpk_rc_handle_command_quantum(gpk_rc_command_t* command) {
   switch (command->id) {
-    case id_gpk_rc_info: {
-      gpk_rc_info_t info = {
-        .version = 1,
-#if defined(GPKRC_TRACKPAD)
-        .device = "trackpad"
-#else
-        .device = "keyboard"
-#endif
-      };
-      
-      uint8_t buffer[32] = {0};
-      buffer[0] = id_gpk_rc_prefix;
-      buffer[1] = id_gpk_rc_info;
-      buffer[2] = info.version;
-      memcpy(&buffer[3], info.device, sizeof(info.device));
-      
-      raw_hid_send(buffer, 32);
-      break;
-    }
-
-    case id_gpk_rc_custom_set_value:
-    case id_gpk_rc_custom_get_value:
-    case id_gpk_rc_pomodoro_get_value: {
+    case id_gpk_rc_set_value:
+    case id_gpk_rc_get_value:
+    case id_gpk_rc_operation: {
       gpk_rc_handle_command_user(
         command->id,
+        command->action,
         command->data,
         command->data_length
       );
       break;
     }
-
-    case id_gpk_rc_layer_move: {
-      if (command->data_length >= 1) {
-        layer_move(command->data[0]);
-      }
-      break;
-    }
-
-#ifdef OLED_ENABLE
-    case id_gpk_rc_olde_write: {
-      if(is_oled_on()){
-        oled_write((const char*) command->data, false);
-      }
-      break;
-    }
-#endif
-
     default:
       break;
   }
@@ -76,11 +41,12 @@ static void gpk_rc_parse_command(uint8_t *buffer, uint8_t* data, uint8_t data_le
   use_gpk_rc_custom_receive = true;
   if (data_length == 0) return;
   command.id = data[0];
-  command.data_length = data_length - 1;
+  command.action = data[1];
+  command.data_length = data_length - 2;
 
   if (command.data_length > 0) {
     if (command.data_length <= GPK_RC_BUFFER_MAX) {
-      memcpy(buffer, &data[1], command.data_length);
+      memcpy(buffer, &data[2], command.data_length);
       command.data = buffer;
     } else {
       return;
