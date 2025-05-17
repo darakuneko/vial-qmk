@@ -631,10 +631,6 @@ endif
 ifeq ($(strip $(GPKRC_ENABLE)), yes)
     SRC += $(QUANTUM_DIR)/gpk_rc.c
     OPT_DEFS += -DGPKRC_ENABLE
-    ifeq ($(strip $(GPKRC_DEVICE)), trackpad)
-        GPKRC_TRACKPAD := yes
-        OPT_DEFS += -DGPKRC_TRACKPAD
-    endif
 endif
 
 ifeq ($(strip $(VIA_ENABLE)), yes)
