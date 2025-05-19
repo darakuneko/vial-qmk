@@ -139,6 +139,8 @@ void set_activity_timestamps(uint32_t matrix_timestamp, uint32_t encoder_timesta
 
 uint32_t get_matrix_scan_rate(void);
 
+void last_matrix_activity_trigger(void);
+
 #ifdef __cplusplus
 }
 #endif
